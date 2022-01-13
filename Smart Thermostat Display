@@ -1,0 +1,77 @@
+import digitalio
+import board
+from PIL import Image, ImageDraw, ImageFont
+from adafruit_rgb_display import st7789
+import datetime
+from datetime import date
+import random
+import time
+
+#Initialize and define the display
+cs_pin = digitalio.DigitalInOut(board.CE0)
+dc_pin = digitalio.DigitalInOut(board.D25)
+reset_pin = digitalio.DigitalInOut(board.D24)
+
+BAUDRATE = 24000000
+
+spi = board.SPI()
+
+disp = st7789.ST7789(spi, rotation=270, cs=cs_pin, dc=dc_pin, rst=reset_pin, baudrate=BAUDRATE)
+
+if disp.rotation % 180 ==90:
+    height = disp.width
+    width = disp.height
+else:
+    width = disp.width
+    height = disp.height
+    
+image = Image.new("RGB", (width,height))
+draw = ImageDraw.Draw(image)
+
+#Loading some fonts - Name definition is "NAME_FONTSIZE"
+FMB_15 = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf',15)
+FMB_60 = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf',60)
+FMO_15 = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoOblique.ttf',15)
+FMO_60 = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoOblique.ttf',60)
+FMB_30 = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf',30)
+#Some functions to show desired things
+def drawLayout():
+    #Clear display
+    draw.rectangle((0,0,320,240),outline=0,fill=(0,0,0))
+    #Rectangles that box in everything
+    draw.rectangle((10,10, 310, 230), outline=(255,255,255),fill=(0,0,0))
+    draw.rectangle((14,14, 306, 226), outline=(255,255,255),fill=(0,0,0))
+    #Create date and time
+    dateandtime = datetime.datetime.now()
+    datex = date(month=dateandtime.month, day=dateandtime.day, year=dateandtime.year).strftime('%b %d')
+    time = dateandtime.strftime('%I:%M %p')
+    #Drawing date
+    draw.text((18,15), datex, font=FMB_15, fill=(255,255,255))
+    #Drawing time
+    draw.text((232,15), time, font=FMB_15, fill=(255,255,255))
+    #Layout includes anything that musn't change over any change
+    #in what is being shown on the display
+
+#drawLayout()
+#disp.image(image)
+    
+def drawTemperature():
+    temp = random.randint(18,29)
+    temp = str(temp)
+    draw.text((130,100), temp, font=FMB_60,fill=(255,255,255))
+    draw.text((200,90), "o", font=FMB_30,fill=(255,255,255))
+    
+def drawThermometerRed():
+    draw.ellipse((92,132,118,158),outline=0,fill=(255,255,255))
+    draw.ellipse((94,134,116,156),outline=(255,0,0),fill=(255,0,0))
+    draw.rectangle((100,140,110,100),outline=(255,255,255),fill=(255,255,255))
+    draw.rectangle((102,142,108,120),outline=(255,0,0),fill=(255,0,0))
+    draw.ellipse((100,95,110,105),outline=(255,255,255),fill=(255,255,255))
+    #draw.ellipse((102,97,108,103),outline=(255,0,0),fill=(255,0,0))
+
+while True:
+    drawLayout()
+    drawThermometerRed()
+    drawTemperature()
+    disp.image(image)
+    time.sleep(1)
