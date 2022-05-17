@@ -1,0 +1,218 @@
+import digitalio
+import board
+from PIL import Image, ImageDraw, ImageFont
+from adafruit_rgb_display import st7789
+import datetime
+from datetime import date
+import socket
+import threading
+import random
+import time
+
+#DS18B20 library + initializing sensor
+from w1thermsensor import W1ThermSensor
+sensor = W1ThermSensor()
+
+#Initialize and define the display
+cs_pin = digitalio.DigitalInOut(board.CE0)
+dc_pin = digitalio.DigitalInOut(board.D25)
+reset_pin = digitalio.DigitalInOut(board.D24)
+
+#Relay for thermostat controls
+cool = digitalio.DigitalInOut(board.D17)
+heat = digitalio.DigitalInOut(board.D27)
+fan = digitalio.DigitalInOut(board.D22)
+
+cool.direction = digitalio.Direction.OUTPUT
+heat.direction = digitalio.Direction.OUTPUT
+fan.direction = digitalio.Direction.OUTPUT
+
+
+
+BAUDRATE = 24000000
+
+spi = board.SPI()
+
+disp = st7789.ST7789(spi, rotation=270, cs=cs_pin, dc=dc_pin, rst=reset_pin, baudrate=BAUDRATE)
+
+if disp.rotation % 180 ==90:
+    height = disp.width
+    width = disp.height
+else:
+    width = disp.width
+    height = disp.height
+    
+image = Image.new("RGB", (width,height))
+draw = ImageDraw.Draw(image)
+
+#Loading some fonts - Name definition is "NAME_FONTSIZE"
+FMB_15 = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf',15)
+FMB_60 = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf',60)
+FMO_15 = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoOblique.ttf',15)
+FMO_60 = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoOblique.ttf',60)
+FMB_30 = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf',30)
+
+#Server test code for thermostat 
+global temp
+temp = 0
+global set_temp
+set_temp = 19
+
+#Setting up some server parameters
+HEADER = 64
+PORT = 12347
+SERVER = "10.128.18.48"
+#SERVER = socket.gethostbyname(socket.gethostname()) #ethernet IP on mycampus internet
+ADDR = (SERVER, PORT)
+FORMAT = 'utf-8'
+DISCONNECT_MESSAGE = "!DISCONNECT"
+
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind(ADDR)
+#Some functions to show desired things
+def drawLayout():
+    #Clear display
+    draw.rectangle((0,0,320,240),outline=0,fill=(0,0,0))
+    #Rectangles that box in everything
+    draw.rectangle((10,10, 310, 230), outline=(255,255,255),fill=(0,0,0))
+    draw.rectangle((14,14, 306, 226), outline=(255,255,255),fill=(0,0,0))
+    #Create date and time
+    dateandtime = datetime.datetime.now()
+    datex = date(month=dateandtime.month, day=dateandtime.day, year=dateandtime.year).strftime('%b %d')
+    time = dateandtime.strftime('%I:%M %p')
+    #Drawing date
+    draw.text((18,15), datex, font=FMB_15, fill=(255,255,255))
+    #Drawing time
+    draw.text((232,15), time, font=FMB_15, fill=(255,255,255))
+    #Layout includes anything that musn't change over any change
+    #in what is being shown on the display
+
+#drawLayout()
+#disp.image(image)
+
+def getTemperature():#conn, addr):
+    #Once the sensor is set up I use that as data source,
+    #for now it is just random numbers
+    global temp
+    #temp = random.randint(18,30)
+    temp = sensor.get_temperature()
+    temp = '{0:.3g}'.format(temp)
+    temp = str(temp)
+    #Need to update current temp to a file for phone app
+    tempconfig = open("tempconfig.txt", "w")
+    tempconfig.write(temp)
+    tempconfig.close()
+    
+    #sending_temp = temp.encode(FORMAT)
+    #conn.send(sending_temp)
+    
+    return temp
+
+def drawTemperature():
+    #getTemperature()
+    global temp
+    temp = str(temp)
+    draw.text((130,100), temp, font=FMB_60,fill=(255,255,255))
+    draw.text((200,90), "o", font=FMB_30,fill=(255,255,255))
+    
+def drawThermometerRed():
+    draw.ellipse((92,132,118,158),outline=0,fill=(255,255,255))
+    draw.ellipse((94,134,116,156),outline=(255,0,0),fill=(255,0,0))
+    draw.rectangle((100,140,110,100),outline=(255,255,255),fill=(255,255,255))
+    draw.rectangle((102,142,108,120),outline=(255,0,0),fill=(255,0,0))
+    draw.ellipse((100,95,110,105),outline=(255,255,255),fill=(255,255,255))
+    #draw.ellipse((102,97,108,103),outline=(255,0,0),fill=(255,0,0))
+
+def showDisplay():#conn, addr):
+    while True:
+        drawLayout()
+        drawThermometerRed()
+        getTemperature()#conn, addr)
+        drawTemperature()
+        disp.image(image)
+        time.sleep(10)
+
+
+def handle_client(conn, addr):
+    global temp
+    global set_temp
+    print(f"[NEW CONNECTION] {addr} connected.")
+    
+    connected = True
+    while connected:
+        global temp
+        temp = str(temp)
+        sending_temp = temp.encode(FORMAT)
+        conn.send(sending_temp)
+        msg_length = conn.recv(HEADER).decode(FORMAT)
+        if msg_length:
+            msg_length = int(msg_length)
+            msg = conn.recv(msg_length).decode(FORMAT)
+            if msg == "inc":
+                set_temp = set_temp + 1
+                print("[SET TEMPERATURE CHANGED] Set temperature is..." + str(set_temp) + "C")
+                cool.value = False
+                heat.value = True
+            if msg == "dec":
+                set_temp = set_temp - 1
+                print("[SET TEMPERATURE CHANGED] Set temperature is..." + str(set_temp) + "C")
+                heat.value = False
+                cool.value = True
+            if msg == DISCONNECT_MESSAGE:
+                connected = False
+        
+            print(f"[{addr}] {msg}")
+            #conn.send("Message recieved".encode(FORMAT))   
+    conn.close()
+
+def send_temp(conn, addr):
+    while True:
+        global temp
+        temp = str(temp)
+        sending_temp = temp.encode(FORMAT)
+        conn.send(sending_temp)
+        time.sleep(10)
+
+#def randomnumber(conn, addr):
+#    while True:
+#        number = random.randint(0,30)
+#        sending_number = str(number)
+#        sending_number = sending_number.encode(FORMAT)
+#        conn.send(sending_number)
+#        time.sleep(10)
+        
+def start():
+    global temp
+    server.listen()
+    print(f"[LISTENING] Server is listening on {SERVER}")
+    while True:
+        conn, addr = server.accept()
+        
+        server_thread = threading.Thread(target=handle_client, args=(conn, addr))
+        server_thread.start()
+        
+        send_temp_thread = threading.Thread(target=send_temp, args=(conn, addr))
+        send_temp_thread.start()
+        
+        #send_temp_thread = threading.Thread(target=showDisplay, args=(conn, addr))
+        #send_temp_thread.start()
+        
+        print(f"[ACTIVE CONNECTIONS] {threading.activeCount()-1}")
+
+def send(msg):
+    message = msg.encode(FORMAT)
+    msg_length = len(message)
+    send_length = str(msg_length).encode(FORMAT)
+    send_length += b' ' * (HEADER - len(send_length))
+    server.send(send_length)
+    server.send(message)
+
+print("[STARTING] Server is starting...")
+
+_showDisplay = threading.Thread(target=showDisplay)
+_showDisplay.start()
+
+start()
+
+#send_temp_thread = threading.Thread(target=showDisplay)#, args=(conn, addr))
+#send_temp_thread.start()
