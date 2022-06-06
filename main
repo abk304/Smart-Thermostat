@@ -1,0 +1,176 @@
+import digitalio
+import board
+from PIL import Image, ImageDraw, ImageFont
+from adafruit_rgb_display import st7789
+import datetime
+from datetime import date
+import time
+import threading
+
+import json
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import db
+
+#Initialize firebase connection
+cred_object = credentials.Certificate("smart-thermostat-2022-firebase-adminsdk-8assi-7944beca07.json")
+default_app = firebase_admin.initialize_app(cred_object, {'databaseURL': 'https://smart-thermostat-2022-default-rtdb.firebaseio.com/'})
+
+ref = db.reference("/Temperature sets/Set Temperature/")
+
+#Initialize temperature values
+set_temperature = 0
+room_temperature = 0
+outside_temperature = 20 #Will be replaced by actual sensor, for now it is set to NTP (normal temperature and pressure).
+last_set_temperature = 0 #For showTempChange
+
+#Initialize fan boolean
+fan = False
+
+set_temperature = ref.get()
+
+#Format to get only 1 decimal place
+temp_print_format = "{0:.1f}"
+
+#DS18B20 library + initializing sensor
+from w1thermsensor import W1ThermSensor
+sensor = W1ThermSensor()
+
+#Initialize and define the display
+cs_pin = digitalio.DigitalInOut(board.CE0)
+dc_pin = digitalio.DigitalInOut(board.D25)
+reset_pin = digitalio.DigitalInOut(board.D24)
+
+#Relay for thermostat controls
+cool = digitalio.DigitalInOut(board.D17)
+heat = digitalio.DigitalInOut(board.D27)
+fan = digitalio.DigitalInOut(board.D22)
+
+cool.direction = digitalio.Direction.OUTPUT
+heat.direction = digitalio.Direction.OUTPUT
+fan.direction = digitalio.Direction.OUTPUT
+
+BAUDRATE = 24000000
+
+spi = board.SPI()
+
+disp = st7789.ST7789(spi, rotation=270, cs=cs_pin, dc=dc_pin, rst=reset_pin, baudrate=BAUDRATE)
+
+if disp.rotation % 180 ==90:
+    height = disp.width
+    width = disp.height
+else:
+    width = disp.width
+    height = disp.height
+    
+image = Image.new("RGB", (width,height))
+draw = ImageDraw.Draw(image)
+
+#Loading some fonts - Name definition is "NAME_FONTSIZE"
+FMB_15 = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf',15)
+FMB_60 = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf',60)
+FMO_15 = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoOblique.ttf',15)
+FMO_60 = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoOblique.ttf',60)
+FMB_30 = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf',30)
+
+#Some functions to show desired things
+def drawLayout():
+    #Clear display
+    draw.rectangle((0,0,320,240),outline=0,fill=(0,0,0))
+    #Rectangles that box in everything
+    draw.rectangle((10,10, 310, 230), outline=(255,255,255),fill=(0,0,0))
+    draw.rectangle((14,14, 306, 226), outline=(255,255,255),fill=(0,0,0))
+    #Create date and time
+    dateandtime = datetime.datetime.now()
+    datex = date(month=dateandtime.month, day=dateandtime.day, year=dateandtime.year).strftime('%b %d')
+    time = dateandtime.strftime('%I:%M %p')
+    #Drawing date
+    draw.text((18,15), datex, font=FMB_15, fill=(255,255,255))
+    #Drawing time
+    draw.text((232,15), time, font=FMB_15, fill=(255,255,255))
+    #Layout includes anything that musn't change over any change
+    #in what is being shown on the display
+    
+def drawTemperature(temp):
+    temp = str(temp)
+    draw.text((130,100), temp, font=FMB_60,fill=(255,255,255))
+    draw.text((200,90), "o", font=FMB_30,fill=(255,255,255))
+    
+def drawThermometerRed():
+    draw.ellipse((92,132,118,158),outline=0,fill=(255,255,255))
+    draw.ellipse((94,134,116,156),outline=(255,0,0),fill=(255,0,0))
+    draw.rectangle((100,140,110,100),outline=(255,255,255),fill=(255,255,255))
+    draw.rectangle((102,142,108,120),outline=(255,0,0),fill=(255,0,0))
+    draw.ellipse((100,95,110,105),outline=(255,255,255),fill=(255,255,255))
+    #draw.ellipse((102,97,108,103),outline=(255,0,0),fill=(255,0,0))
+    
+def drawThermometerBlue():
+    draw.ellipse((92,132,118,158),outline=0,fill=(255,255,255))
+    draw.ellipse((94,134,116,156),outline=(0,0,255),fill=(20,0,255))
+    draw.rectangle((100,140,110,100),outline=(255,255,255),fill=(255,255,255))
+    draw.rectangle((102,142,108,120),outline=(0,0,255),fill=(20,0,255))
+    draw.ellipse((100,95,110,105),outline=(255,255,255),fill=(255,255,255))
+    #draw.ellipse((102,97,108,103),outline=(255,0,0),fill=(255,0,0))
+
+def showDisplay(room_temp):
+    drawLayout()
+    drawThermometerRed()
+    drawTemperature(room_temp)
+    disp.image(image)
+    
+def showTempChange(set_temp):
+    drawLayout()
+    drawThermometerBlue()
+    drawTemperature(set_temp)
+    disp.image(image)
+    time.sleep(5)
+
+while True:
+    room_temperature = sensor.get_temperature()
+    room_temperature= temp_print_format.format(room_temperature)
+    set_temperature = ref.get()
+    print(set_temperature)
+    print(last_set_temperature)
+    if last_set_temperature != set_temperature:
+        showTempChange(set_temperature)
+    
+    last_set_temperature = set_temperature
+    
+    
+    
+    #Show display on physical thermostat
+    showDisplay(room_temperature)
+    
+    #Make room_temperature float again to send it to firebase
+    room_temperature = float(room_temperature)
+    
+    #Here must go all the code that decides what happens if set temperature is changed.
+    if set_temperature > room_temperature:
+        heat.value = True
+        cool.value = False
+    elif set_temperature < room_temperature:
+        heat.value = False
+        cool.value = True
+    #Fan control requires one single button - easily programmable
+    
+    
+    #JSON file that will hold new data and be sent to firebase
+    data = {
+                    "Temperature sets":
+                {
+                        "Room Temperature": room_temperature,
+                        "Set Temperature": set_temperature
+                }
+            }
+    
+    data_file = open('test.json','w')
+    json.dump(data,data_file)
+    data_file.close()
+
+    #Need from here -------------------------------------------------------------------
+    ref2 = db.reference("/")
+    with open(r"test.json","r") as f:
+        file_content = json.load(f)
+    ref2.set(file_content)
+    time.sleep(5)
+    #----------------------------------------------------to here, to send the json file.
