@@ -9,7 +9,7 @@ from firebase_admin import db
 # Create device with credentials and connect to firebase
 cred_object = credentials.Certificate("smart-thermostat-2022-firebase-adminsdk-8assi-935d8da7ba.json")
 default_app = firebase_admin.initialize_app(cred_object, {'databaseURL':'https://smart-thermostat-2022-default-rtdb.firebaseio.com/'})
-ref = db.reference("/")
+#ref = db.reference("/")
 
 # Import kivy for app GUI
 import kivy
@@ -36,11 +36,16 @@ Window.clearcolor = (22 / 255, 35 / 255, 64 / 255, 1)
 
 global set_temperature
 global recieved_ambient_temperature
-with open('temperature_info.json','r') as openfile:
-    file = json.load(openfile)
-    sets = file["Temperature sets"]
-    set_temperature = sets["Set Temperature"]
-    recieved_ambient_temperature = sets["Room Temperature"]
+
+ref = db.reference("/Temperature sets/Room Temperature/")
+
+##
+#with open('temperature_info.json','r') as openfile:
+#    file = json.load(openfile)
+#    sets = file["Temperature sets"]
+#    set_temperature = sets["Set Temperature"]
+#    recieved_ambient_temperature = sets["Room Temperature"]
+recieved_ambient_temperature = ref.get()
 
 global current_ambient_temperature_label
 current_ambient_temperature_label = Label(text="",
@@ -86,11 +91,13 @@ def current_ambient_temperature_label_updater(dt):
     global current_ambient_temperature_label
     global set_temperature
     
-    with open('temperature_info.json','r') as openfile:
-        file = json.load(openfile)
-        sets = file["Temperature sets"]
-        #set_temperature = sets["Set Temperature"]
-        recieved_ambient_temperature = sets["Room Temperature"]
+    ##
+    #with open('temperature_info.json','r') as openfile:
+    #    file = json.load(openfile)
+    #    sets = file["Temperature sets"]
+    #    #set_temperature = sets["Set Temperature"]
+    #    recieved_ambient_temperature = sets["Room Temperature"]
+    recieved_ambient_temperature = ref.get()
     
     temp_print_format = "{0:.1f}"
     layout.remove_widget(current_ambient_temperature_label)
