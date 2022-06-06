@@ -2,7 +2,7 @@
 """
 Created on Mon Jun  6 09:49:06 2022
 
-@author: 100692639
+@author: Abhay Kaushik
 """
 
 # Code to create the android app and connect it to firebase for thermostat control
@@ -31,8 +31,8 @@ from kivy.uix.button import Button
 from kivy.clock import Clock
 from kivy.config import Config
 
-Config.set('graphics', 'width', '720')
-Config.set('graphics', 'height', '1280')
+Config.set('graphics', 'width', '1080')
+Config.set('graphics', 'height', '1920')
 Config.set('graphics', 'resizable', False)
 
 from kivy.core.window import Window
@@ -90,7 +90,7 @@ def set_temperature_label_updater():
     
     layout.remove_widget(set_temperature_label)
     
-    set_temperature_label = Label(text=temp_string,pos=(0,-260),font_size='80sp',bold=True)
+    set_temperature_label = Label(text=temp_string,pos=(0,-560),font_size='90sp',bold=True)
     layout.add_widget(set_temperature_label)
 
 # Label updater to update the phone screen every 15 seconds
@@ -114,8 +114,8 @@ def current_ambient_temperature_label_updater(dt):
     temp_f = (temp_c * 9 / 5) + 32
     temp_f = temp_print_format.format(temp_f)
     display_temp = str(temp_c) + " | " + str(temp_f)
-    current_ambient_temperature_label = Label(text=display_temp, font_size='90sp',
-                                              bold=True, pos=(0,200))
+    current_ambient_temperature_label = Label(text=display_temp, font_size='100sp',
+                                              bold=True, pos=(0,180))
     layout.add_widget(current_ambient_temperature_label)
     
     data = {
@@ -141,14 +141,14 @@ class myApp(App):
         global layout, connectedBool
         layout = FloatLayout()
         layout.add_widget(Image(source="thermostat-app-background-1080.jpg"))
-        incTemp = Button(text="", size_hint=(0.27, 0.11), pos=(260, 395), background_normal='upButton.png',background_down='upButton_down.png',border=(0,0,0,0))
+        incTemp = Button(text="", size_hint=(0.22, 0.11), pos=(415, 410), background_normal='upButton.png',background_down='upButton_down.png',border=(0,0,0,0))
         incTemp.bind(on_release=increaseTemp)
         layout.add_widget(incTemp)
-        decTemp = Button(text="", size_hint=(0.27, 0.11), pos=(265, 225), background_normal='downButton.png',background_down='downButton_down.png',border=(0,0,0,0))
+        decTemp = Button(text="", size_hint=(0.22, 0.11), pos=(420, 170), background_normal='downButton.png',background_down='downButton_down.png',border=(0,0,0,0))
         decTemp.bind(on_release=decreaseTemp)
         layout.add_widget(decTemp)
         
-        text1 = Label(text="Room Temperature", pos=(0,300), bold=True, font_size = '50sp')
+        text1 = Label(text="Room Temperature", pos=(0,300), bold=True, font_size = '60sp')
         layout.add_widget(text1)
 
         #_current_ambient_temperature_label_updater = threading.Thread(target=current_ambient_temperature_label_updater)
