@@ -1,0 +1,188 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Jun  6 09:49:06 2022
+
+@author: 100692639
+"""
+
+# Code to create the android app and connect it to firebase for thermostat control
+
+# Import all things required for firebase connection and operation
+import json
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import db
+
+# Create device with credentials and connect to firebase
+cred_object = credentials.Certificate("smart-thermostat-2022-firebase-adminsdk-8assi-935d8da7ba.json")
+default_app = firebase_admin.initialize_app(cred_object, {'databaseURL':'https://smart-thermostat-2022-default-rtdb.firebaseio.com/'})
+#ref = db.reference("/")
+
+# Import kivy for app GUI
+import kivy
+
+kivy.require('1.9.0')
+
+from kivy.app import App
+from kivy.uix.label import Label
+from kivy.uix.image import Image
+from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.button import Button
+from kivy.clock import Clock
+from kivy.config import Config
+
+Config.set('graphics', 'width', '1080')
+Config.set('graphics', 'height', '1920')
+Config.set('graphics', 'resizable', False)
+
+from kivy.core.window import Window
+
+Window.clearcolor = (22 / 255, 35 / 255, 64 / 255, 1)
+
+# Ask firebase for initial values before GUI is initiated
+
+global set_temperature
+global recieved_ambient_temperature
+global last_set_temperature
+
+ref = db.reference("/Temperature sets/Room Temperature/")
+ref2 = db.reference("/Temperature sets/Set Temperature/")
+ref3 = db.reference("/")
+##
+#with open('temperature_info.json','r') as openfile:
+#    file = json.load(openfile)
+#    sets = file["Temperature sets"]
+#    set_temperature = sets["Set Temperature"]
+#    recieved_ambient_temperature = sets["Room Temperature"]
+set_temperature = ref2.get()
+recieved_ambient_temperature = ref.get()
+
+global current_ambient_temperature_label
+current_ambient_temperature_label = Label(text="",
+                                          pos=(0, 0),
+                                          font_size='70sp',
+                                          bold=True)
+global set_temperature_label
+set_temperature_label = Label(text="",pos=(0,0),font_size='70sp',bold=True)
+
+global enviro_message_label
+enviro_message_label = Label(text="",pos=(0,0),font_size='30sp',bold=True)
+
+# Functions to increase or decrease set_temperature that will be called as respective
+# buttons are pressed.
+def increaseTemp(instance):
+    global set_temperature
+    set_temperature = set_temperature + 0.5
+    set_temperature_label_updater()
+    enviromessage_label()
+    pass
+    #Do something
+
+
+def decreaseTemp(instance):
+    global set_temperature
+    set_temperature = set_temperature - 0.5
+    set_temperature_label_updater()
+    enviromessage_label()
+    pass
+    #Do something
+
+def set_temperature_label_updater():
+    global set_temperature
+    global set_temperature_label
+    global layout
+    
+    temp_string = str(set_temperature)
+    
+    layout.remove_widget(set_temperature_label)
+    
+    set_temperature_label = Label(text=temp_string,pos=(0,-560),font_size='90sp',bold=True)
+    layout.add_widget(set_temperature_label)
+
+def enviromessage_label():
+    global set_temperature
+    global last_set_temperature
+    global enviro_message_label
+    global layout
+    
+    def remove_label(instance):
+        layout.remove_widget(enviro_message_label)
+    
+    message = "Did you know that a good average house temperature in Canada is between 20°C and 22°C"
+    layout.remove_widget(enviro_message_label)
+    enviro_message_label = Label(text=message,pos=(0,200),font_size='30sp',bold=True)
+    layout.add_widget(enviro_message_label)
+    Clock.schedule_once(remove_label,15)
+
+# Label updater to update the phone screen every 15 seconds
+def current_ambient_temperature_label_updater(dt):
+    global layout
+    global recieved_ambient_temperature
+    global current_ambient_temperature_label
+    global set_temperature
+    global last_set_temperature
+    
+    ##
+    #with open('temperature_info.json','r') as openfile:
+    #    file = json.load(openfile)
+    #    sets = file["Temperature sets"]
+    #    #set_temperature = sets["Set Temperature"]
+    #    recieved_ambient_temperature = sets["Room Temperature"]
+    recieved_ambient_temperature = ref.get()
+    
+    temp_print_format = "{0:.1f}"
+    layout.remove_widget(current_ambient_temperature_label)
+    temp_c = float(recieved_ambient_temperature)
+    temp_f = (temp_c * 9 / 5) + 32
+    temp_f = temp_print_format.format(temp_f)
+    display_temp = str(temp_c) + "°C" #+ str(temp_f)
+    current_ambient_temperature_label = Label(text=display_temp, font_size='100sp',
+                                              bold=True, pos=(0,180))
+    layout.add_widget(current_ambient_temperature_label)
+    
+    data = {
+                    "Temperature sets":
+                {
+                        "Room Temperature": recieved_ambient_temperature,
+                        "Set Temperature": set_temperature
+                }
+            }
+    
+    data_file = open('temperature_info.json','w')
+    json.dump(data,data_file)
+    data_file.close()
+    
+    with open(r"temperature_info.json","r") as f:
+        file_content = json.load(f)
+    ref3.set(file_content)
+    print(set_temperature)
+
+class myApp(App):
+
+    def build(self):
+        global layout, connectedBool
+        layout = FloatLayout()
+        layout.add_widget(Image(source="thermostat-app-background-1080.jpg"))
+        incTemp = Button(text="", size_hint=(0.22, 0.11), pos=(415, 410), background_normal='upButton.png',background_down='upButton_down.png',border=(0,0,0,0))
+        incTemp.bind(on_release=increaseTemp)
+        layout.add_widget(incTemp)
+        decTemp = Button(text="", size_hint=(0.22, 0.11), pos=(420, 170), background_normal='downButton.png',background_down='downButton_down.png',border=(0,0,0,0))
+        decTemp.bind(on_release=decreaseTemp)
+        layout.add_widget(decTemp)
+        
+        text1 = Label(text="Room Temperature", pos=(0,300), bold=True, font_size = '60sp')
+        layout.add_widget(text1)
+
+        #_current_ambient_temperature_label_updater = threading.Thread(target=current_ambient_temperature_label_updater)
+        #_current_ambient_temperature_label_updater.start()
+        
+        set_temperature_label_updater()
+        
+        Clock.schedule_interval(current_ambient_temperature_label_updater, 5)
+
+        return layout
+
+
+if __name__ == "__main__":
+    myApp().run()
+################################################################## ALL APP STUFF
