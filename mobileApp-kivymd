@@ -5,9 +5,13 @@ Created on Fri Jun 24 19:22:20 2022
 @author: AbhayKaushik
 """
 
+import json
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import db
+
 import random
 from kivy.clock import Clock
-from kivy.properties import ObjectProperty
 
 from kivy.config import Config
 Config.set('graphics', 'position', 'custom')
@@ -26,32 +30,105 @@ Window.size = (450,800)
 
 Builder.load_file('gui.kv')
 
+# Create device with credentials and connect to firebase
+cred_object = credentials.Certificate("smart-thermostat-2022-firebase-adminsdk-8assi-935d8da7ba.json")
+default_app = firebase_admin.initialize_app(cred_object, {'databaseURL':'https://smart-thermostat-2022-default-rtdb.firebaseio.com/'})
+#ref = db.reference("/")
+
+# Import kivy for app GUI
+import kivy
+
+kivy.require('1.9.0')
+
+# Firebase+connectivity+data
+
+global set_temperature
+global recieved_ambient_temperature
+
+ref = db.reference("/Temperature sets/Room Temperature/")
+ref2 = db.reference("/Temperature sets/Set Temperature/")
+ref3 = db.reference("/")
+
+set_temperature = ref2.get()
+recieved_ambient_temperature = ref.get()
+
+
+
 class MainLayout(MDBoxLayout):
     
-    roomTemperature = ObjectProperty()
+    #roomTemperature = ObjectProperty()
+    
+    # EXTREMELY IMPORTANT __init__
+    # It is essentially telling the class what to do when an object is 
+    # created. Here, it makes an instance of itself, inherits everything from
+    # the class and run the Clock.schedule... line. This makes the class function
+    # execute each time there is an instance created.
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        Clock.schedule_interval(self.roomTempLabel, 5)
+        
+        self.ids["setTemperature"].text = str(set_temperature)
     
     def randnum(self):
         number = random.randint(0,100)
         print(number)
+        number = str(number)+"°C"
+        self.ids["setTemperature"].text = number
         
-        self.ids["setTemperature"].text = str(number)
+    def incTemp(self):
+        global set_temperature
+        set_temperature = set_temperature + 0.5
+        #set_temperature = str(set_temperature) + "°C"
+        self.ids["setTemperature"].text = str(set_temperature) + "°C"
+        pass
+    
+    def decTemp(self):
+        global set_temperature
+        set_temperature = set_temperature - 0.5
+        #set_temperature = str(set_temperature) + "°C"
+        self.ids["setTemperature"].text = str(set_temperature) + "°C"
+        pass
         
-    def roomTempLabel(self):
-        another_number = random.randint(18,32)
-        MainLayout.ids["roomTemperature"] = str(another_number)
-        print("1")
+    def roomTempLabel(self,dt):
+        #another_number = random.randint(18,32)
+        #another_number = str(another_number) + "°C"
         
-    Clock.schedule_interval(lambda dt: MainLayout.roomTempLabel, 5)
+        global recieved_ambient_temperature
+        global current_ambient_temperature_label
+        global set_temperature
+        
+        recieved_ambient_temperature = ref.get()
+        
+        #temp_print_format = "{0:.1f}"
+        
+        temp_c = float(recieved_ambient_temperature)
+        display_temp = str(temp_c) + "°C"
+        
+        self.ids["roomTemperature"].text = display_temp
+        print(str(display_temp))
+        
+        data = {
+                    "Temperature sets":
+                {
+                        "Room Temperature": recieved_ambient_temperature,
+                        "Set Temperature": set_temperature
+                }
+            }
+    
+        data_file = open('temperature_info.json','w')
+        json.dump(data,data_file)
+        data_file.close()
+    
+        with open(r"temperature_info.json","r") as f:
+            file_content = json.load(f)
+            ref3.set(file_content)
+            print(set_temperature)
 
 class app(MDApp):
-    def build(self):
-        
+    
+    def build(self):    
         self.title = "Smart Thermostat"
-        
-        #Clock.schedule_interval(MainLayout.roomTempLabel, 5)
-        #Clock.schedule_interval(lambda dt: MainLayout().roomTempLabel(), 5)
-        Clock.schedule_interval(lambda dt: MainLayout.roomTempLabel(), 5)
-        
         return MainLayout()
 
 if __name__ == '__main__':    
