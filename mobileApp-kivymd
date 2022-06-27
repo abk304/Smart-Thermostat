@@ -1,0 +1,58 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jun 24 19:22:20 2022
+
+@author: AbhayKaushik
+"""
+
+import random
+from kivy.clock import Clock
+from kivy.properties import ObjectProperty
+
+from kivy.config import Config
+Config.set('graphics', 'position', 'custom')
+Config.set('graphics', 'top', '100')
+Config.set('graphics', 'left', '100')
+
+from kivy.lang import Builder
+from kivymd.app import MDApp
+
+from kivymd.uix.boxlayout import MDBoxLayout
+from kivymd.uix.floatlayout import MDFloatLayout
+from kivymd.uix.label import MDLabel
+
+from kivy.core.window import Window 
+Window.size = (450,800)
+
+Builder.load_file('gui.kv')
+
+class MainLayout(MDBoxLayout):
+    
+    roomTemperature = ObjectProperty()
+    
+    def randnum(self):
+        number = random.randint(0,100)
+        print(number)
+        
+        self.ids["setTemperature"].text = str(number)
+        
+    def roomTempLabel(self):
+        another_number = random.randint(18,32)
+        MainLayout.ids["roomTemperature"] = str(another_number)
+        print("1")
+        
+    Clock.schedule_interval(lambda dt: MainLayout.roomTempLabel, 5)
+
+class app(MDApp):
+    def build(self):
+        
+        self.title = "Smart Thermostat"
+        
+        #Clock.schedule_interval(MainLayout.roomTempLabel, 5)
+        #Clock.schedule_interval(lambda dt: MainLayout().roomTempLabel(), 5)
+        Clock.schedule_interval(lambda dt: MainLayout.roomTempLabel(), 5)
+        
+        return MainLayout()
+
+if __name__ == '__main__':    
+    app().run()
