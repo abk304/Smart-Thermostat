@@ -1,0 +1,58 @@
+<MainLayout>
+    
+    MDFloatLayout:
+        orientation: "vertical"
+        size: self.parent.size
+        pos: self.parent.pos
+        md_bg_color: 40/255,4/255,112/255,1
+        
+    #MDScreen:
+            
+        MDLabel:
+            text: "Room Temperature"
+            theme_text_color: "Custom"
+            text_color: 1, 1, 1, 1
+            font_style: 'H3'
+            bold: True
+            halign: "center"
+            #valign: "top"
+            pos_hint:{'center_y':dp(0.9)}
+            
+            #canvas.before:
+            #    Color:
+            #        rgba: 0, 1, 0, 1
+            #    Rectangle:
+            #        pos: self.pos
+            #        size: self.size
+            
+        MDLabel:
+            id: setTemperature
+            text: "11"
+            theme_text_color:"Custom"
+            text_color: 1, 0, 0, 1
+            font_style: 'H3'
+            pos_hint: {'center_x':dp(0.5), 'center_y':dp(0.4)}
+            
+        MDLabel:
+            roomTemperature: roomTemperature
+            id: roomTemperature
+            text: "00"
+            theme_text_color:"Custom"
+            text_color: 1, 1, 1, 1
+            font_style: 'H4'
+            halign: "center"
+            pos_hint:{'center_y': dp(0.8)}
+            
+            
+            
+        MDIconButton:
+            icon: "up arrow.png"
+            size_hint: (dp(0.125*16/9),dp(0.125))
+            pos_hint: {'center_x': dp(0.5),'center_y': dp(0.375)}
+            on_release:root.randnum()
+            
+        MDIconButton:
+            icon: "down arrow.png"
+            size_hint: (dp(0.125*16/9),dp(0.125))
+            pos_hint: {'center_x': dp(0.5),'center_y': dp(0.125)}
+            on_release:root.randnum()
