@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Jun 24 19:22:20 2022
-
-@author: AbhayKaushik
-"""
-
 import json
 import firebase_admin
 from firebase_admin import credentials
