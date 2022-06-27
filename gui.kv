@@ -12,7 +12,7 @@
             text: "Room Temperature"
             theme_text_color: "Custom"
             text_color: 1, 1, 1, 1
-            font_style: 'H3'
+            font_style: 'H2'
             bold: True
             halign: "center"
             #valign: "top"
@@ -27,32 +27,39 @@
             
         MDLabel:
             id: setTemperature
-            text: "11"
+            text: "11°C"
             theme_text_color:"Custom"
             text_color: 1, 0, 0, 1
             font_style: 'H3'
-            pos_hint: {'center_x':dp(0.5), 'center_y':dp(0.4)}
+            bold: True
+            pos_hint: {'center_x':dp(0.9), 'center_y':dp(0.25)}
+            
+            #canvas.before:
+            #    Color:
+            #        rgba: 0, 1, 0, 1
+            #    Rectangle:
+            #        pos: self.pos
+            #        size: self.size
             
         MDLabel:
-            roomTemperature: roomTemperature
             id: roomTemperature
-            text: "00"
+            text: "-"
             theme_text_color:"Custom"
             text_color: 1, 1, 1, 1
-            font_style: 'H4'
+            font_style: 'H3'
             halign: "center"
-            pos_hint:{'center_y': dp(0.8)}
+            pos_hint:{'center_y': dp(0.7)}
             
             
             
         MDIconButton:
             icon: "up arrow.png"
-            size_hint: (dp(0.125*16/9),dp(0.125))
+            size_hint: dp(0.125*16/9),dp(0.125)
             pos_hint: {'center_x': dp(0.5),'center_y': dp(0.375)}
-            on_release:root.randnum()
+            on_release:root.incTemp()
             
         MDIconButton:
             icon: "down arrow.png"
-            size_hint: (dp(0.125*16/9),dp(0.125))
+            size_hint: dp(0.125*16/9),dp(0.125)
             pos_hint: {'center_x': dp(0.5),'center_y': dp(0.125)}
-            on_release:root.randnum()
+            on_release:root.decTemp()
